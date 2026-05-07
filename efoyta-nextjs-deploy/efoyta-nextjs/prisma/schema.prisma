@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum SubscriptionStatus {
+  active
+  trial
+  expired
+}
+
+enum UserRole {
+  super_admin
+  hotel_admin
+  staff
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  rejected
+}
+
+enum RoomType {
+  Single
+  Double
+  Suite
+  Family
+}
+
+enum PlanType {
+  Starter
+  Professional
+  Enterprise
+}
+
+model Hotel {
+  id                  String             @id @default(cuid())
+  slug                String             @unique
+  name                String
+  city                String
+  tagline             String             @default("")
+  about               String             @default("") @db.Text
+  phone               String             @default("")
+  email               String             @default("")
+  address             String             @default("")
+  emoji               String             @default("🏨")
+  stars               String             @default("★★★")
+  subscriptionStatus  SubscriptionStatus @default(trial)
+  subscriptionEnds    DateTime?
+  plan                PlanType           @default(Starter)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  users     User[]
+  rooms     Room[]
+  bookings  Booking[]
+  menuItems MenuItem[]
+
+  @@index([city])
+  @@index([slug])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  hotelId      String?
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(hotel_admin)
+  createdAt    DateTime @default(now())
+
+  hotel Hotel? @relation(fields: [hotelId], references: [id])
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  hotelId     String
+  name        String
+  type        RoomType @default(Double)
+  capacity    Int      @default(2)
+  price       Int
+  available   Boolean  @default(true)
+  description String   @default("")
+  imageUrl    String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  hotel    Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@index([hotelId])
+}
+
+model Booking {
+  id          String        @id @default(cuid())
+  hotelId     String
+  roomId      String
+  guestName   String
+  guestEmail  String
+  guestPhone  String        @default("")
+  checkIn     DateTime
+  checkOut    DateTime
+  nights      Int
+  total       Int
+  status      BookingStatus @default(pending)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room  Room  @relation(fields: [roomId], references: [id])
+
+  @@index([hotelId])
+  @@index([status])
+}
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  hotelId     String
+  name        String
+  category    String
+  description String   @default("")
+  price       Int
+  available   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId])
+  @@index([category])
+}
